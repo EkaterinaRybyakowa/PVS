@@ -1,0 +1,82 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define SIZE 1000000
+#define PRINT_LIMIT 10  // Количество элементов для вывода
+
+void init_array(double* arr, int size) {
+    for (int i = 0; i < size; i++) {
+        arr[i] = i + 1;
+    }
+}
+
+void print_results(double* results, int size, const char* operation) {
+    printf("\n%s results (first %d elements):\n", operation, PRINT_LIMIT);
+    for (int i = 0; i < PRINT_LIMIT; i++) {
+        printf("%.2f ", results[i]);
+    }
+    printf("\n...\n");
+}
+
+void array_ops(double* a, double* b, double* results, int size) {
+    clock_t start;
+    
+    // Сложение
+    start = clock();
+    for (int i = 0; i < size; i++) {
+        results[i] = a[i] + b[i];
+    }
+    printf("Addition: %.6f sec\n", (double)(clock() - start)/CLOCKS_PER_SEC);
+    print_results(results, size, "Addition");
+    
+    // Вычитание
+    start = clock();
+    for (int i = 0; i < size; i++) {
+        results[size + i] = a[i] - b[i];
+    }
+    printf("Subtraction: %.6f sec\n", (double)(clock() - start)/CLOCKS_PER_SEC);
+    print_results(results + size, size, "Subtraction");
+    
+    // Умножение
+    start = clock();
+    for (int i = 0; i < size; i++) {
+        results[2*size + i] = a[i] * b[i];
+    }
+    printf("Multiplication: %.6f sec\n", (double)(clock() - start)/CLOCKS_PER_SEC);
+    print_results(results + 2*size, size, "Multiplication");
+    
+    // Деление
+    start = clock();
+    for (int i = 0; i < size; i++) {
+        results[3*size + i] = b[i] != 0 ? a[i] / b[i] : 0;
+    }
+    printf("Division: %.6f sec\n", (double)(clock() - start)/CLOCKS_PER_SEC);
+    print_results(results + 3*size, size, "Division");
+}
+
+int main() {
+    double* a = malloc(SIZE * sizeof(double));
+    double* b = malloc(SIZE * sizeof(double));
+    double* results = malloc(4 * SIZE * sizeof(double));
+    
+    if (!a || !b || !results) {
+        printf("Memory allocation failed!\n");
+        return 1;
+    }
+    
+    init_array(a, SIZE);
+    init_array(b, SIZE);
+    
+    printf("Initial arrays (first %d elements):\n", PRINT_LIMIT);
+    printf("Array a: ");
+    for (int i = 0; i < PRINT_LIMIT; i++) printf("%.2f ", a[i]);
+    printf("\nArray b: ");
+    for (int i = 0; i < PRINT_LIMIT; i++) printf("%.2f ", b[i]);
+    printf("\n...\n\n");
+    
+    array_ops(a, b, results, SIZE);
+    
+    free(a); free(b); free(results);
+    return 0;
+}
