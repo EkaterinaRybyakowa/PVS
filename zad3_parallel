@@ -1,0 +1,100 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <omp.h>
+
+#define SIZE 1000000
+#define PRINT_LIMIT 10
+#define NUM_THREADS_VARIANTS 3
+
+void init_array(double* arr, int size) {
+    #pragma omp parallel for
+    for (int i = 0; i < size; i++) {
+        arr[i] = i + 1;
+    }
+}
+
+void print_results(double* results, int size, const char* operation, int threads) {
+    printf("\n%s results (%d threads, first %d elements):\n", 
+           operation, threads, PRINT_LIMIT);
+    for (int i = 0; i < PRINT_LIMIT; i++) {
+        printf("%.2f ", results[i]);
+    }
+    printf("\n...\n");
+}
+
+void parallel_ops(double* a, double* b, double* results, int size, int threads) {
+    double start;
+    omp_set_num_threads(threads);
+    
+    // Addition
+    start = omp_get_wtime();
+    #pragma omp parallel for
+    for (int i = 0; i < size; i++) {
+        results[i] = a[i] + b[i];
+    }
+    printf("Addition (%d threads): %.6f sec\n", threads, omp_get_wtime() - start);
+    print_results(results, size, "Addition", threads);
+    
+    // Subtraction
+    start = omp_get_wtime();
+    #pragma omp parallel for
+    for (int i = 0; i < size; i++) {
+        results[size + i] = a[i] - b[i];
+    }
+    printf("Subtraction (%d threads): %.6f sec\n", threads, omp_get_wtime() - start);
+    print_results(results + size, size, "Subtraction", threads);
+    
+    // Multiplication
+    start = omp_get_wtime();
+    #pragma omp parallel for
+    for (int i = 0; i < size; i++) {
+        results[2*size + i] = a[i] * b[i];
+    }
+    printf("Multiplication (%d threads): %.6f sec\n", threads, omp_get_wtime() - start);
+    print_results(results + 2*size, size, "Multiplication", threads);
+    
+    // Division
+    start = omp_get_wtime();
+    #pragma omp parallel for
+    for (int i = 0; i < size; i++) {
+        results[3*size + i] = b[i] != 0 ? a[i] / b[i] : 0;
+    }
+    printf("Division (%d threads): %.6f sec\n", threads, omp_get_wtime() - start);
+    print_results(results + 3*size, size, "Division", threads);
+}
+
+int main() {
+    double* a = malloc(SIZE * sizeof(double));
+    double* b = malloc(SIZE * sizeof(double));
+    double* results = malloc(4 * SIZE * sizeof(double));
+    int threads[NUM_THREADS_VARIANTS] = {2, 4, 8}; // Thread count variations
+    
+    if (!a || !b || !results) {
+        printf("Memory allocation failed!\n");
+        return 1;
+    }
+    
+    // Initialize arrays (in parallel)
+    double init_start = omp_get_wtime();
+    init_array(a, SIZE);
+    init_array(b, SIZE);
+    printf("Array initialization took: %.6f sec\n", omp_get_wtime() - init_start);
+    
+    printf("Initial arrays (first %d elements):\n", PRINT_LIMIT);
+    printf("Array a: ");
+    for (int i = 0; i < PRINT_LIMIT; i++) printf("%.2f ", a[i]);
+    printf("\nArray b: ");
+    for (int i = 0; i < PRINT_LIMIT; i++) printf("%.2f ", b[i]);
+    printf("\n...\n\n");
+    
+    // Test with different thread counts
+    for (int i = 0; i < NUM_THREADS_VARIANTS; i++) {
+        int num_threads = threads[i];
+        printf("\n=== Parallel operations (%d threads) ===\n", num_threads);
+        parallel_ops(a, b, results, SIZE, num_threads);
+    }
+    
+    free(a); free(b); free(results);
+    return 0;
+}
