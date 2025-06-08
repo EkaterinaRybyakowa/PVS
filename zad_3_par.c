@@ -3,8 +3,6 @@
 #include <mpi.h>
 #include <time.h>
 
-#define ARRAY_SIZE 1000000
-
 // Заполнение массива случайными значениями от 1 до 100
 void fill_random(int *array, int size) {
     for (int i = 0; i < size; i++) {
@@ -32,32 +30,41 @@ void compute_div(int *a, int *b, double *quot, int size) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Использование: mpirun -np <процессы> %s <кол-во запусков>\n", argv[0]);
+    if (argc < 3) {
+        if (MPI_Init(NULL, NULL), MPI_Comm_rank(MPI_COMM_WORLD, &rank), rank == 0) {
+            printf("Использование: mpirun -np <процессы> %s <размер массивов> <кол-во запусков>\n", argv[0]);
+        }
+        MPI_Finalize();
         return 1;
     }
 
-    int runs = atoi(argv[1]);
-    if (runs <= 0) {
-        printf("Ошибка: количество запусков должно быть положительным числом.\n");
-        return 1;
-    }
+    int array_size = atoi(argv[1]);
+    int runs = atoi(argv[2]);
 
     MPI_Init(&argc, &argv);
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Проверка делимости массива на количество процессов
-    if (ARRAY_SIZE % size != 0) {
+    if (array_size <= 0 || runs <= 0) {
         if (rank == 0) {
-            printf("Ошибка: размер массива должен делиться на количество процессов.\n");
+            printf("Ошибка: оба параметра должны быть положительными числами.\n");
         }
         MPI_Finalize();
         return 1;
     }
 
-    int local_size = ARRAY_SIZE / size;
+    // Проверка делимости массива на количество процессов
+    if (array_size % size != 0) {
+        if (rank == 0) {
+            printf("Ошибка: размер массива (%d) должен делиться на количество процессов (%d).\n", 
+                   array_size, size);
+        }
+        MPI_Finalize();
+        return 1;
+    }
+
+    int local_size = array_size / size;
 
     // Локальные массивы для каждого процесса
     int *local_a = malloc(local_size * sizeof(int));
@@ -70,8 +77,8 @@ int main(int argc, char *argv[]) {
     // Глобальные массивы только у процесса 0
     int *a = NULL, *b = NULL;
     if (rank == 0) {
-        a = malloc(ARRAY_SIZE * sizeof(int));
-        b = malloc(ARRAY_SIZE * sizeof(int));
+        a = malloc(array_size * sizeof(int));
+        b = malloc(array_size * sizeof(int));
     }
 
     // Накопители времени
@@ -83,8 +90,8 @@ int main(int argc, char *argv[]) {
     for (int run = 0; run < runs; run++) {
         if (rank == 0) {
             srand(time(NULL) + run);
-            fill_random(a, ARRAY_SIZE);
-            fill_random(b, ARRAY_SIZE);
+            fill_random(a, array_size);
+            fill_random(b, array_size);
         }
 
         // Распределение данных между процессами
@@ -123,7 +130,8 @@ int main(int argc, char *argv[]) {
 
     // Вывод результатов только у процесса 0
     if (rank == 0) {
-        printf("Среднее время выполнения операций за %d запусков:\n", runs);
+        printf("Среднее время выполнения операций для массива размером %d за %d запусков:\n", 
+               array_size, runs);
         printf("Сложение:    %f секунд(ы)\n", total_time_add / runs);
         printf("Вычитание:   %f секунд(ы)\n", total_time_sub / runs);
         printf("Умножение:   %f секунд(ы)\n", total_time_mul / runs);
